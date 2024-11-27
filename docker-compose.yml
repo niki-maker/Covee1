@@ -1,0 +1,61 @@
+version: '3.3'
+
+services:
+  grafana:
+    image: grafana/grafana
+    volumes:
+      - ./grafana/config/custom.ini:/etc/grafana/grafana.ini
+    ports:
+      - 3000:3000
+    environment:
+      - "GF_INSTALL_PLUGINS=grafana-clock-panel,grafana-simple-json-datasource"
+  covee-powerflow:
+    build:
+      context: '.'
+      dockerfile: './covee-powerflow.Dockerfile'
+    volumes:
+      - ./covee-powerflow:/covee-powerflow
+    command: bash -c "cd covee-powerflow && 
+                      make init &&
+                      cd .. &&
+                      /covee-powerflow/powerflow/bin/python3 /covee-powerflow/runPF.py --ext_port 7070"
+    command:          tail -F dfsdfökdslk
+    ports:
+      - 7070:8000
+  covee:
+    build:
+      context: '.'
+      dockerfile: './covee.Dockerfile'
+    volumes:
+      - ./covee:/covee
+    command: bash -c "cd covee &&  
+                      make init &&
+                      cd .. &&
+                      /covee/covee/bin/python3 /covee/Control_main.py --ext_port 7071"
+    command:          tail -F dfsdfödslk
+    ports:
+      - 7071:8000
+
+  mqtt:
+    image: eclipse-mosquitto
+    ports:
+      - "1883:1883"
+      - "9001:9001"
+
+  influxdb:
+    image: influxdb:latest
+    restart: unless-stopped
+    ports:
+      - 8086:8086
+    environment:
+      - "INFLUXDB_REPORTING_DISABLED=true"
+    volumes:
+      - ./covee-powerflow/influxdb/data/:/var/lib/influxdb
+
+  telegraf:
+    image: telegraf:1.10.4
+    depends_on:
+      - influxdb
+      - mqtt
+    volumes:
+      - ./covee-powerflow/telegraf/telegraf.conf:/etc/telegraf/telegraf.conf:ro
